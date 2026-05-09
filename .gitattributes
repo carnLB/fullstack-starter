@@ -1,0 +1,34 @@
+# ============================================================
+# Default behavior: normalize line endings to LF in the repo.
+# On checkout, Git may convert to CRLF on Windows if the user
+# has core.autocrlf=true, but the stored version is always LF.
+# ============================================================
+* text=auto eol=lf
+
+# ============================================================
+# Files that MUST be LF even on disk (would break otherwise)
+# ============================================================
+# Shell scripts run in Linux containers — CRLF would break them
+*.sh           text eol=lf
+*.bash         text eol=lf
+
+# Docker-related files are read by the Linux Docker daemon
+Dockerfile     text eol=lf
+*.dockerfile   text eol=lf
+docker-compose*.yml text eol=lf
+
+# Web/config files commonly read by Linux tools
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.json         text eol=lf
+
+# ============================================================
+# Binary files — never try to normalize or diff them
+# ============================================================
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
