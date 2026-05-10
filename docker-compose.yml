@@ -1,0 +1,92 @@
+# ============================================================
+# Docker Compose — local development stack
+# Services: MySQL 8 + Adminer (DB GUI)
+# Data persists in a named volume across restarts.
+# ============================================================
+
+services:
+  # ----------------------------------------------------------
+  # MySQL database
+  # ----------------------------------------------------------
+  db:
+    # Pin to MySQL 8.0 (LTS-stable). Avoid :latest in production
+    # to keep upgrades intentional.
+    image: mysql:8.0
+
+    # Explicit container name so docker ps shows something readable
+    container_name: fullstack-starter-db
+
+    # Restart on crash, but respect explicit `docker compose stop`
+    restart: unless-stopped
+
+    # Env vars consumed by the official MySQL image at first init.
+    # The right side is interpolated from the .env file by Compose.
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+
+    # Expose MySQL on the host machine.
+    # Format is "HOST_PORT:CONTAINER_PORT".
+    # MySQL inside the container always listens on 3306;
+    # we map host port from .env so it is configurable per project.
+    ports:
+      - "${DB_PORT}:3306"
+
+    # Persist /var/lib/mysql (where MySQL stores all data files)
+    # in a named Docker volume. Without this, `docker compose down`
+    # would wipe the database.
+    volumes:
+      - db_data:/var/lib/mysql
+
+    # Healthcheck: Compose runs this command periodically.
+    # Until it passes, the service is "starting"; once it passes,
+    # the service is "healthy". Other services can wait on this.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${DB_ROOT_PASSWORD}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      # Give MySQL up to 30s to do first-boot initialization
+      # (creating system tables, etc.) before counting failures.
+      start_period: 30s
+
+  # ----------------------------------------------------------
+  # Adminer — lightweight web UI for the DB
+  # ----------------------------------------------------------
+  adminer:
+    image: adminer:latest
+    container_name: fullstack-starter-adminer
+    restart: unless-stopped
+
+    # Pre-fill the "Server" field on Adminer's login page with "db",
+    # so we do not have to type it every time.
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+
+    # Expose Adminer on the host (default 8080).
+    ports:
+      - "${ADMINER_PORT}:8080"
+
+    # Do not start Adminer until db is healthy.
+    # (Otherwise Adminer might try to connect before MySQL is ready.)
+    depends_on:
+      db:
+        condition: service_healthy
+
+# ============================================================
+# Named volumes (managed by Docker; we do not see them on disk)
+# ============================================================
+volumes:
+  db_data:

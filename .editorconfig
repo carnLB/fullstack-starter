@@ -19,3 +19,10 @@ trim_trailing_whitespace = true
 # ============================================================
 [*.md]
 trim_trailing_whitespace = false
+
+# ============================================================
+# YAML — 2 spaces is the universal convention.
+# Aligns with Prettier's YAML override.
+# ============================================================
+[*.{yml,yaml}]
+indent_size = 2
