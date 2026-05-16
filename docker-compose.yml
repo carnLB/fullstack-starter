@@ -45,8 +45,6 @@ services:
 
   # ----------------------------------------------------------
   # Backend — Express + TypeScript (development mode)
-  # Built from ./backend/Dockerfile.
-  # Source code is bind-mounted for hot reload via tsx watch.
   # ----------------------------------------------------------
   backend:
     build:
@@ -55,25 +53,33 @@ services:
     container_name: fullstack-starter-backend
     restart: unless-stopped
 
-    # PORT inside the container. The Express app reads process.env.PORT.
     environment:
+      # Server
       PORT: 3000
       CHOKIDAR_USEPOLLING: "true"
 
-    # Map host BACKEND_PORT -> container 3000.
-    # Container always listens on 3000 (matches Dockerfile's EXPOSE).
+      # Database — backend talks to MySQL inside the Compose network,
+      # so the host is the service name `db` and the port is MySQL's
+      # internal 3306 (NOT the host-mapped DB_PORT).
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+
     ports:
       - "${BACKEND_PORT}:3000"
 
-    # Volume strategy:
-    #   1) Bind-mount the source folder so file edits on the host
-    #      are visible inside the container (hot reload).
-    #   2) Anonymous volume on /app/node_modules so the container's
-    #      Linux-built node_modules is NOT overwritten by the host's
-    #      (potentially Windows-built) node_modules.
     volumes:
       - ./backend:/app
       - /app/node_modules
+
+    # Wait until MySQL is healthy before starting the backend.
+    # Without this, the first query would race against MySQL
+    # init and fail with "Connection refused".
+    depends_on:
+      db:
+        condition: service_healthy
 
 # ============================================================
 # Named volumes
