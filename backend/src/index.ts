@@ -4,43 +4,58 @@
 // ============================================================
 
 import express, { Request, Response } from 'express';
-import { success } from './helpers/response';
+import { success, error } from './helpers/response';
+import { env } from './config/env';
+import { db } from './config/database';
 
-// Create the Express app instance.
 const app = express();
 
-// ------------------------------------------------------------
-// Built-in middleware
-// ------------------------------------------------------------
-
-// Parse JSON request bodies into req.body.
-// Without this, POST/PUT requests with a JSON body would leave
-// req.body as undefined.
+// Built-in middleware: parse JSON request bodies.
 app.use(express.json());
 
 // ============================================================
 // Routes
 // ============================================================
 
-// Health check endpoint.
-// Used by load balancers, monitoring tools, and developers
-// to confirm that the server is alive and responding.
-//
-// Response shape (standardised):
-//   { success: true, data: { status: "ok" }, error: null }
+// Health check — confirms the server is alive and responding.
+// Does NOT touch the database.
 app.get('/api/v1/health', (req: Request, res: Response) => {
     res.status(200).json(success({ status: 'ok' }));
+});
+
+// Database check — runs a trivial SELECT 1 query to verify
+// the connection pool, credentials, and network path all work.
+app.get('/api/v1/db-check', async (req: Request, res: Response) => {
+    try {
+        // Knex .raw() returns a driver-specific shape.
+        // For the mysql2 driver, the result is [rows, fields].
+        // We pick rows (the first element) for the response payload.
+        const result = await db.raw('SELECT 1 AS one');
+        const rows = result[0];
+
+        res.status(200).json(
+            success({
+                db: 'connected',
+                rows,
+            }),
+        );
+    } catch (err) {
+        // In strict TypeScript (4.4+), caught errors are typed as
+        // `unknown`. We must narrow before reading .message.
+        const message = err instanceof Error ? err.message : 'Unknown error';
+
+        // Log the full error server-side; show only a short summary
+        // to the client (never expose stack traces in API responses).
+        console.error('DB check failed:', err);
+
+        res.status(500).json(error(`Database check failed: ${message}`));
+    }
 });
 
 // ============================================================
 // Server startup
 // ============================================================
 
-// Read PORT from env; fall back to 3000 if unset.
-// process.env values are always strings, so we coerce to number.
-// In M4 we will introduce dotenv to load values from .env file.
-const PORT = Number(process.env.PORT) || 3000;
-
-app.listen(PORT, () => {
-    console.log(`Backend listening on http://localhost:${PORT}`);
+app.listen(env.port, () => {
+    console.log(`Backend listening on http://localhost:${env.port}`);
 });

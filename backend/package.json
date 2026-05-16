@@ -16,7 +16,9 @@
   "author": "Jozef Carnogursky",
   "license": "UNLICENSED",
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "knex": "^3.2.10",
+    "mysql2": "^3.22.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
