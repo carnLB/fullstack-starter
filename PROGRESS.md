@@ -7,18 +7,43 @@ Môj učebný denník. Píšem si sem, čo je hotové, kde som skončil a čo id
 
 ## Práve teraz
 
-**Aktuálny míľnik:** 5 — Prvá migrácia (Knex)
+**Aktuálny míľnik:** 6 — Prvý reálny endpoint (`GET /api/v1/users`)
 **Stav:** Pred štartom.
-**Ďalej:** vytvoriť `backend/knexfile.ts` (Knex CLI konfig pre migrácie a seedy),
-priečinok `backend/migrations/`, prvú migráciu `create_users_table`
-(id, name, email, created_at). Spustiť `npx knex migrate:latest` a overiť
-cez Adminer, že tabuľka vznikla.
+**Ďalej:** rozdeliť kód do vrstiev route → controller → service. Vytvoriť
+`src/routes/users.routes.ts`, `src/controllers/users.controller.ts`,
+`src/services/users.service.ts`. Endpoint vráti všetkých používateľov
+z tabuľky `users` cez Knex builder API (`db('users').select('*')`).
 
 **Posledná otázka, ktorú som si položil:** žiadna otvorená.
 
 ---
 
 ## Hotové míľniky
+
+### Míľnik 5 — Prvá migrácia (Knex) _(2026-06-01)_
+- `backend/knexfile.js` (plain JS, nie .ts kvôli stabilite Knex CLI integrácie).
+  Importuje connection z `process.env` priamo, nie z `src/config/env.ts`.
+- `ts-node@10.9.2` ako devDep — Knex CLI ho potrebuje pre `.ts` migrácie.
+- npm skripty: `migrate:make`, `migrate:latest`, `migrate:rollback`, `migrate:status`.
+- Prvá migrácia: `20260531220544_create_users_table.ts`
+  (id BIGINT PK auto-increment, name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE, created_at TIMESTAMP default NOW()).
+- `migrate:latest` + `migrate:rollback` + `migrate:latest` otestované —
+  tabuľka sa korektne vytvára aj maže.
+- **Naučené koncepty:** Knex schema builder (`createTable`, `increments`,
+  `string`, `timestamp`, `notNullable`, `unique`, `defaultTo(knex.fn.now())`),
+  `up()` / `down()` ako párové operácie, `knex_migrations` tabuľka eviduje
+  spustené migrácie.
+- **Naučené lekcie:**
+  - **Knex CLI + TypeScript je krehké** — `knexfile.ts` s importom z `env.ts`
+    nefungoval (ts-node loader fail). Riešenie: `knexfile.js` (plain JS),
+    `require('ts-node/register')` v ňom pre migrácie samotné.
+  - **Pri pridaní devDep cez host `npm install`** sa balíček nemusí dostať
+    do kontajnera ani s `--build --renew-anon-volumes`, ak npm install
+    z nejakého dôvodu zlyhal. Fallback: `docker exec ... npm install --save-dev <pkg>`.
+  - **Jedna logická zmena = jedna migrácia.** Duplicitné `migrate:make`
+    vytvorí dva súbory rovnakého mena s rôznymi timestamps — treba zmazať
+    duplikáty pred `migrate:latest`.
 
 ### Míľnik 4 — Backend pripojenie na MySQL _(2026-05-16)_
 - Závislosti: `knex` (query builder) + `mysql2` (driver), oba runtime deps.
@@ -73,8 +98,8 @@ cez Adminer, že tabuľka vznikla.
 2. **Docker Compose + MySQL + Adminer** — _Hotové (2026-05-10)._
 3. **Backend hello-world** — _Hotové (2026-05-10)._
 4. **Backend pripojenie na MySQL** — _Hotové (2026-05-16)._
-5. **Prvá migrácia** — _Ďalej._ `knexfile.ts`, `migrations/`, `create_users_table`.
-6. **Prvý reálny endpoint** — `GET /api/v1/users` s vrstvami route → controller → service.
+5. **Prvá migrácia** — _Hotové (2026-06-01)._
+6. **Prvý reálny endpoint** — _Ďalej._ `GET /api/v1/users` s vrstvami route → controller → service.
 7. **Validácia + POST endpoint** — manuálne TS type guards v `helpers/validators.ts`.
 8. **Frontend služba** — Vue 3 + Vite, fetch `/api/v1/users`, zobrazenie.
 9. **Production build** — `docker-compose.prod.yml`, Express servuje built frontend.
@@ -91,11 +116,13 @@ cez Adminer, že tabuľka vznikla.
 - _Po dokončení template-u (M11 hotové) sa pýtať na praktický návod
   nasadenia na VPS (DigitalOcean / Hetzner): doména, TLS cez Caddy/Traefik,
   managed DB._
-- _Testovacia tabuľka `persistence_test` v DB je z M2 — môžeme zmazať
-  v Adminer-i alebo nechať tak, prepíše/koexistuje s Knex migráciami v M5._
+- _Testovacia tabuľka `persistence_test` z M2 v DB stále existuje vedľa
+  `users`. Knex migrácie ju ignorujú. Zmazať v Adminer-i pri ďalšom otvorení._
 - _Workflow pri zmene `package.json` deps: `docker compose up -d --build
-  --renew-anon-volumes backend`. Bez `--renew-anon-volumes` ti starý
-  anonymous volume zatuli `node_modules`._
+  --renew-anon-volumes backend`. Ak to nezaberie, fallback je
+  `docker exec ... npm install --save-dev <pkg>`._
+- _Knex CLI workflow: vždy `docker exec fullstack-starter-backend npm run migrate:<cmd>`.
+  Migrácie sa vykonávajú v sieti kontajnera (`DB_HOST=db`), nie z hosta._
 - _Pri klonovaní template-u v budúcnosti: zmeniť názov v `README.md`,
   vytvoriť nový GitHub repo a prepnúť remote cez
   `git remote set-url origin <novy-url>`._
